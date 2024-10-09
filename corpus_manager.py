@@ -8,11 +8,10 @@ class CorpusManager:
 
     def __init__(self, name: str, filename: str, from_xml: bool = True):
         """
-        The constructor of the class CorpusManager. Loads a query serialized as XML. It is assumed that the document is located in the directory ./data .
-        All query attributes are incorporated in a object variable self.corpus (dict).
+        The constructor of the class CorpusManager.
 
         Args:
-            name: The name of the object/corpus.
+            name: The name of the corpus.
             filename: The filename of the xml document.
         """
 
@@ -25,7 +24,15 @@ class CorpusManager:
             self.deserialize_corpus_from_json(filename)
 
     def deserialize_corpus_from_xml(self, name, filename) -> None:
+        """
+        A helper method for the constructor. Loads a query serialized as XML. It is assumed that the document is located
+        in the directory ./data .
+        All query attributes are incorporated in the object variable self.corpus (dict).
 
+        Args:
+            name: The name of the corpus.
+            filename: The filename of the xml document.
+        """
         self.corpus = {}
         self.name = name  # e.g. the search word
 
@@ -73,28 +80,70 @@ class CorpusManager:
             }
 
     def deserialize_corpus_from_json(self, filename: str) -> None:
+        """
+        A helper method for the constructor. Loads a serialized CorpusManager object. It is assumed that the object is
+        located in the directory ./data/processed .
 
+        Args:
+            filename: The filename/name of the serialized corpus.
+        """
         self.name = filename
 
         with open(os.path.join("data/processed", filename), "r", encoding='utf-8') as f:
             self.corpus = json.load(f)
 
     def serialize_corpus(self, filename: str) -> None:
+        """
+        This method serializes a corpus.
 
+        Args:
+            filename: The filename of the saved object.
+        """
         with open(os.path.join("data/processed", filename), "w", encoding='utf-8') as f:
             json.dump(self.corpus, f, ensure_ascii=False, indent=2, default=CorpusManager.json_converter)
 
     @staticmethod
-    def json_converter(obj):
+    def json_converter(obj) -> str or None:
+        """
+        A helper method for serialize_corpus, which translates a datetime object to a string.
+
+        Args:
+            obj: The object to be checked and transformed if applicable.
+        Returns:
+            The transformed datetime object as string or None.
+        """
         if isinstance(obj, datetime):
             return obj.date().isoformat()
         raise TypeError(f"Type {type(obj)} not serializable")
 
-    def filter_by_title(self):
-        pass
+    def filter_by_title(self, keyword: str or list, case_sensitive: bool = False) -> None:
+        """
+        This method filters an object corpus with a given keyword or a list of keywords. An entry in the corpus is
+        deleted if the title does not match the keyword or a keyword in the list, respectively.
+
+        Args:
+            keyword: The keyword or the list of keywords.
+            case_sensitive: If True, every keyword is treated as case-sensitive.
+        """
+        i = 0
+        keys_to_delete = []
+
+        if isinstance(keyword, str):
+            keyword = [keyword]
+
+        for k in self.corpus.keys():
+
+            if not case_sensitive:
+                if not any(kw.lower() in k.lower() for kw in keyword):
+                    keys_to_delete.append(k)
+            else:
+                if not any(kw in k for kw in keyword):
+                    keys_to_delete.append(k)
+
+        for k in keys_to_delete:
+            del self.corpus[k]
+            i += 1
+
+        print(f"{i} entries in the corpus were deleted.")
 
 
-if __name__ == "__main__":
-    corpus = CorpusManager(name="Test", filename="test", from_xml=False)
-    print(corpus.corpus)
-    corpus.serialize_corpus("test")
