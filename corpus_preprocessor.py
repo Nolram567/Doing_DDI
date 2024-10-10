@@ -8,22 +8,35 @@ class CorpusPreprocessor(CorpusManager):
 
     def __init__(self, corpus_manager: CorpusManager):
         """
+        The constructor of the class CorpusPreprocessor.
 
         Args:
-            corpus_manager:
+            corpus_manager: A CorpusManager object.
         """
+
         self.corpus = corpus_manager.corpus
         self.name = corpus_manager.name
 
-    def normalize(self):
+    def normalize(self) -> None:
+        """
+        This method normalizes the full text of a document to lowercase.
+        """
         for doc in self.corpus:
             self.corpus[doc]["fulltext"] = self.corpus[doc]["fulltext"].lower()
 
-    def tokenize(self):
+    def tokenize(self) -> None:
+        """
+        This method tokenizes the full text of a document by whitespaces. The resulting full text is a list of strings.
+        """
         for doc in self.corpus:
             self.corpus[doc]["fulltext"] = self.corpus[doc]["fulltext"].split(" ")
 
-    def lemmatize(self):
+    def lemmatize(self) -> None:
+        """
+        This method lemmatizes the full text of a document. It uses the large version of spacy's
+        de_core_news language model. This method also removes stop words utilizing nltk's german stop word list plus
+        digits and punctuation marks.
+        """
         try:
             german_model = spacy.load('de_core_news_lg', disable=['parser', 'ner'])
         except IOError:
