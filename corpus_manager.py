@@ -5,7 +5,26 @@ import json
 
 
 class CorpusManager:
+    """
+    This class provides methods to load, save and filter serialized query's as xml or json document.
+    The documents are saved as object variables in a dictionary that uses the document's title as key. The keys map to
+    another dictionary that contains the metadata and the full text of the document.
+    The object variable corpus has the following structure:
 
+    {"title": {"source_level": (...),
+                "source_name": (...),
+                "source_fullname": (...),
+                "document_number": (...),
+                "document_date": (...),
+                "initiator": (...),
+                "type": (...),
+                "title": (...),
+                "url_polx": (...),
+                "url": d_element.(...),
+                "fulltext": (...)
+    }
+    }
+    """
     def __init__(self, name: str, filename: str, from_xml: bool = True):
         """
         The constructor of the class CorpusManager.
@@ -102,20 +121,6 @@ class CorpusManager:
         with open(os.path.join("data/processed", filename), "w", encoding='utf-8') as f:
             json.dump(self.corpus, f, ensure_ascii=False, indent=2, default=CorpusManager.json_converter)
 
-    @staticmethod
-    def json_converter(obj) -> str or None:
-        """
-        A helper method for serialize_corpus, which translates a datetime object to a string.
-
-        Args:
-            obj: The object to be checked and transformed if applicable.
-        Returns:
-            The transformed datetime object as string or None.
-        """
-        if isinstance(obj, datetime):
-            return obj.date().isoformat()
-        raise TypeError(f"Type {type(obj)} not serializable")
-
     def filter_by_title(self, keyword: str or list, case_sensitive: bool = False) -> None:
         """
         This method filters an object corpus with a given keyword or a list of keywords. An entry in the corpus is
@@ -146,4 +151,16 @@ class CorpusManager:
 
         print(f"{i} entries in the corpus were deleted.")
 
+    @staticmethod
+    def json_converter(obj) -> str or None:
+        """
+        A helper method for serialize_corpus, which translates a datetime object to a string.
 
+        Args:
+            obj: The object to be checked and transformed if applicable.
+        Returns:
+            The transformed datetime object as string or None.
+        """
+        if isinstance(obj, datetime):
+            return obj.date().isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable")
