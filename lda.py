@@ -9,8 +9,7 @@ import pyLDAvis.gensim_models as gensimvis
 import pyLDAvis
 
 
-def visualize_model(lda_model: LdaModel, bag_of_words_model: list, dictionary: corpora.dictionary, filename: str,
-                    save: bool = True) -> None:
+def visualize_model(lda_model: LdaModel, bag_of_words_model: list, dictionary: corpora.dictionary, filename: str, save: bool = True) -> None:
     vis_data = gensimvis.prepare(lda_model, bag_of_words_model, dictionary)
     if save:
         pyLDAvis.save_html(vis_data, os.path.join('data_outputs/lda_visualisation', filename))
@@ -49,7 +48,7 @@ if __name__ == "__main__":
 
     coherence_map = {}
     my_models = {}
-    # We implement the interval of k ad for loop.
+    # We implement the interval of k as for loop.
     for k in range(5, 31):
         model = LdaModel(
             corpus=bow_corpus,
