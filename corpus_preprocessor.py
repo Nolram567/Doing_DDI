@@ -1,7 +1,6 @@
 import os
 import re
 import string
-import csv
 from collections import Counter
 from corpus_manager import CorpusManager
 import spacy
@@ -161,34 +160,37 @@ class CorpusPreprocessor(CorpusManager):
 
         self.clean(custom_stopwords=True, remove_singular_terms=True)
 
-    def mine_term_frequency(self, output_path: str = "data_outputs/term_frequency.csv") -> None:
-        """
-        This method calculates the TF in a corpus, that is already tokenized. The calculated frequencies are serialized
-        as csv file under the specified output_path.
-
-        Args:
-            output_path: The output path and filename for the csv file.
-        """
-        term_counter = Counter()
-
-        for doc in self.corpus:
-            term_counter.update(self.corpus[doc]['processed_text'])
-
-        sorted_terms = term_counter.most_common()
-
-        with open(output_path, mode='w', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow(['Term', 'Frequency'])
-            writer.writerows(sorted_terms)
-
 
 if __name__ == "__main__":
-    corpus_dateninstitut = CorpusManager(name="dateninstitut", filename="dateninstitut_fulltext.xml")
 
-    # corpus_dateninstitut.filter_by_title("Dateninstitut")
+    corpus_dateninstitut = CorpusManager(name="dateninstitut", filename="dateninstitut_processed_tfidf", from_xml=False)
 
     corpus_dateninstitut_preprocessor = CorpusPreprocessor(corpus_dateninstitut)
 
-    corpus_dateninstitut_preprocessor.prepare_for_topic_modeling()
+    corpus_dateninstitut_preprocessor.mine_term_frequency("data_outputs/processed_term_frequency.csv")
 
-    corpus_dateninstitut_preprocessor.serialize_corpus("dateninstitut_unfiltered_processed")
+    mean_relevance = []
+
+    for doc in corpus_dateninstitut.corpus:
+        mean_relevance.append(corpus_dateninstitut.corpus[doc]["relevance_dateninstitut"])
+
+    mean_relevance.sort()
+
+    print(f"Die mittlere Relevanz des Terms 'Dateninstitut' beträgt {mean_relevance[round(len(mean_relevance)/2)]}")
+
+    '''corpus_dateninstitut = CorpusManager(name="dateninstitut", filename="dateninstitut_processed", from_xml=False)
+
+    corpus_dateninstitut.calculate_term_relevance(term="dateninstitut")
+
+    corpus_dateninstitut.serialize_corpus("dateninstitut_processed_tfidf")
+
+    for doc in corpus_dateninstitut.corpus:
+        print(f"{corpus_dateninstitut.corpus[doc]['relevance_dateninstitut']}\n")'''
+
+    # corpus_dateninstitut.filter_by_title("Dateninstitut")
+
+    #corpus_dateninstitut_preprocessor = CorpusPreprocessor(corpus_dateninstitut)
+
+    #corpus_dateninstitut_preprocessor.prepare_for_topic_modeling()
+
+    #corpus_dateninstitut_preprocessor.serialize_corpus("dateninstitut_unfiltered_processed")
