@@ -1,7 +1,9 @@
+import json
 import os
 import re
 import string
 from collections import Counter
+from corpus_analyzer import CorpusAnalyzer
 from corpus_manager import CorpusManager
 import spacy
 from nltk.corpus import stopwords
@@ -51,7 +53,7 @@ class CorpusPreprocessor(CorpusManager):
         for doc in self.corpus:
             self.corpus[doc]['processed_text'] = self.corpus[doc]['processed_text'].split(" ")
 
-    def lemmatize(self, remove_stopwords: bool = True, max_length: int = 10000000000) -> None:
+    def lemmatize(self, remove_stopwords: bool = True, max_length: int = 9131400) -> None:
         """
         This method lemmatizes the full text of a document. It uses the large version of spacy's
         de_core_news language model. This method optionally removes stop words utilizing nltk's german stop word list plus
@@ -67,24 +69,80 @@ class CorpusPreprocessor(CorpusManager):
             os.system("python -m spacy download de_core_news_lg")
             german_model = spacy.load('de_core_news_lg', disable=['parser', 'ner'])
 
-        # Choose max_length depending one corpus size and available memory
+        # Set maximum document length for the model
         german_model.max_length = max_length
 
         for doc in self.corpus:
-            current_doc = german_model(self.corpus[doc]['processed_text'])
+            try:
+                # Process the whole document at once
+                current_doc = german_model(self.corpus[doc]['processed_text'])
 
-            lemmatised_doc = [token.lemma_ for token in current_doc if
-                              (token.text.lower() not in CorpusPreprocessor.german_stop_words) and remove_stopwords]
+                lemmatized_doc = [token.lemma_ for token in current_doc if
+                                  (token.text.lower() not in CorpusPreprocessor.german_stop_words) and remove_stopwords]
 
-            self.corpus[doc]['processed_text'] = ' '.join(lemmatised_doc)
+                self.corpus[doc]['processed_text'] = ' '.join(lemmatized_doc)
 
-    def clean(self, custom_stopwords: bool = False, remove_singular_terms: bool = False) -> None:
+            except MemoryError:
+                # If memory error occurs, process the document in chunks
+                print(f"MemoryError: Processing document '{doc}' in smaller chunks.")
+
+                lemmatized_tokens = []
+                processed_text = self.corpus[doc]['processed_text']
+
+                # Split the text into chunks of 1000 words each
+                chunk_size = 1000
+                for chunk in range(0, len(processed_text), chunk_size):
+                    chunk_text = processed_text[chunk:chunk + chunk_size]
+                    current_chunk = german_model(chunk_text)
+
+                    lemmatized_chunk = [token.lemma_ for token in current_chunk if
+                                        (
+                                                    token.text.lower() not in CorpusPreprocessor.german_stop_words) and remove_stopwords]
+
+                    lemmatized_tokens.extend(lemmatized_chunk)
+
+                self.corpus[doc]['processed_text'] = ' '.join(lemmatized_tokens)
+
+    def n_gram_inclusion(self) -> None:
+        """
+        This method includes Mulitword Expressions into the corpus.
+        """
+
+        with open('data_preprocessing/MWE.json', 'r', encoding='utf-8') as json_file:
+            MWE = json.load(json_file)
+        with open('data_preprocessing/MWE_reversed.json', 'r', encoding='utf-8') as json_file:
+            MWE_reversed = json.load(json_file)
+
+        mutliword_expressions = []
+        for entry in MWE.values():
+            mutliword_expressions.append(entry)
+
+        for key, value in self.corpus.items():
+            new_doc = []
+            skipped = False
+            for i, token in enumerate(value.get('processed_text')):
+                if skipped:
+                    skipped = False
+                    continue
+                if i < len(value.get('processed_text')) - 1:
+                    bigram = [token, value.get('processed_text')[i + 1]]
+                    if bigram in mutliword_expressions:
+                        new_doc.append(MWE_reversed[str(bigram)])
+                        skipped = True
+                    else:
+                        new_doc.append(token)
+                else:
+                    new_doc.append(token)
+
+            self.corpus[key]['processed_text'] = new_doc
+
+    def clean(self, custom_stopwords: bool = False, remove_rare_terms: int = 1) -> None:
         """
         This method cleans a tokenized corpus.
 
         Args:
             custom_stopwords: If true, custom stop words will be removed.
-            remove_singular_terms: If true, terms that occur singularly, will be removed.
+            remove_rare_terms: If value>0, terms that occur as often or less than specified, will be removed.
         """
         for doc in self.corpus:
             self.corpus[doc]['processed_text'] = [token for token in self.corpus[doc]['processed_text'] if
@@ -97,14 +155,14 @@ class CorpusPreprocessor(CorpusManager):
                                                        "+" in token  # Remove Phonenumbers.
                                                        )
                                                   ]
-            if remove_singular_terms:
-                self.remove_singular_terms()
+            if remove_rare_terms:
+                self.remove_rare_terms(n=remove_rare_terms)
             if custom_stopwords:
                 self.remove_custom_stopwords()
 
-    def remove_singular_terms(self) -> None:
+    def remove_rare_terms(self, n: int = 1) -> None:
         """
-        This method removes all singularly occurring terms in a tokenized, lemmatized and normalized corpus.
+        This method removes all terms that occur as often or less than n in a tokenized, lemmatized and normalized corpus.
         """
         term_counter = Counter()
 
@@ -112,15 +170,15 @@ class CorpusPreprocessor(CorpusManager):
         for doc in self.corpus:
             term_counter.update(self.corpus[doc]['processed_text'])
 
-        # Collect singular terms
-        singular_terms = {term for term, freq in term_counter.items() if freq == 1}
+        # Collect terms with insufficient frequency
+        singular_terms = {term for term, freq in term_counter.items() if freq <= n}
 
-        # Remove singular terms from each document
+        # Remove all collected terms
         for doc in self.corpus:
             self.corpus[doc]['processed_text'] = [token for token in self.corpus[doc]['processed_text'] if
                                                   token not in singular_terms]
 
-    def remove_custom_stopwords(self, path: str = "data_outputs/stopwords_di_unfiltered.txt") -> None:
+    def remove_custom_stopwords(self, path: str = "data_preprocessing/stopwords_di_unfiltered.txt") -> None:
         """
         This method removes stop words from a custom stop word list specified by the path parameter. This method ought to
         be used on an already tokenized, lemmatized and normalized corpus.
@@ -158,39 +216,22 @@ class CorpusPreprocessor(CorpusManager):
 
         self.tokenize()
 
-        self.clean(custom_stopwords=True, remove_singular_terms=True)
+        self.n_gram_inclusion()
+
+        self.clean(custom_stopwords=True, remove_rare_terms=3)
 
 
 if __name__ == "__main__":
 
-    corpus_dateninstitut = CorpusManager(name="dateninstitut", filename="dateninstitut_processed_tfidf", from_xml=False)
+    corpus_dateninstitut = CorpusManager(name="dateninstitut", filename="dateninstitut_fulltext.xml", from_xml=True)
 
     corpus_dateninstitut_preprocessor = CorpusPreprocessor(corpus_dateninstitut)
 
-    corpus_dateninstitut_preprocessor.mine_term_frequency("data_outputs/processed_term_frequency.csv")
+    corpus_dateninstitut_preprocessor.prepare_for_topic_modeling()
 
-    mean_relevance = []
+    corpus_dateninstitut_analyzer = CorpusAnalyzer(corpus_dateninstitut)
 
-    for doc in corpus_dateninstitut.corpus:
-        mean_relevance.append(corpus_dateninstitut.corpus[doc]["relevance_dateninstitut"])
+    corpus_dateninstitut_analyzer.calculate_term_relevance(term="dateninstitut")
 
-    mean_relevance.sort()
+    corpus_dateninstitut.serialize_corpus("dateninstitut_full_final.json")
 
-    print(f"Die mittlere Relevanz des Terms 'Dateninstitut' beträgt {mean_relevance[round(len(mean_relevance)/2)]}")
-
-    '''corpus_dateninstitut = CorpusManager(name="dateninstitut", filename="dateninstitut_processed", from_xml=False)
-
-    corpus_dateninstitut.calculate_term_relevance(term="dateninstitut")
-
-    corpus_dateninstitut.serialize_corpus("dateninstitut_processed_tfidf")
-
-    for doc in corpus_dateninstitut.corpus:
-        print(f"{corpus_dateninstitut.corpus[doc]['relevance_dateninstitut']}\n")'''
-
-    # corpus_dateninstitut.filter_by_title("Dateninstitut")
-
-    #corpus_dateninstitut_preprocessor = CorpusPreprocessor(corpus_dateninstitut)
-
-    #corpus_dateninstitut_preprocessor.prepare_for_topic_modeling()
-
-    #corpus_dateninstitut_preprocessor.serialize_corpus("dateninstitut_unfiltered_processed")
