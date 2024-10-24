@@ -2,7 +2,7 @@ import os
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import json
-
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 class CorpusManager:
     """
@@ -15,13 +15,15 @@ class CorpusManager:
                 "source_name": (...),
                 "source_fullname": (...),
                 "document_number": (...),
-                "document_date": (...),
+                "document_date": datetime object (YYYY-MM-DD),
                 "initiator": (...),
                 "type": (...),
                 "title": (...),
                 "url_polx": (...),
                 "url": d_element.(...),
                 "fulltext": (...)
+                "fulltext_processed": list[str] (optional)
+                "relevance_term": float (optional)
     }
     }
     """
@@ -101,7 +103,7 @@ class CorpusManager:
     def deserialize_corpus_from_json(self, filename: str) -> None:
         """
         A helper method for the constructor. Loads a serialized CorpusManager object. It is assumed that the object is
-        located in the directory ./data/processed .
+        located in the directory ./data/processed.
 
         Args:
             filename: The filename/name of the serialized corpus.
@@ -111,6 +113,9 @@ class CorpusManager:
         with open(os.path.join("data/processed", filename), "r", encoding='utf-8') as f:
             self.corpus = json.load(f)
 
+        # Apply the datetime parser to convert 'document_date'
+        self.corpus = CorpusManager.datetime_converter(self.corpus)
+
     def serialize_corpus(self, filename: str) -> None:
         """
         This method serializes a corpus.
@@ -119,7 +124,9 @@ class CorpusManager:
             filename: The filename of the saved object.
         """
         with open(os.path.join("data/processed", filename), "w", encoding='utf-8') as f:
-            json.dump(self.corpus, f, ensure_ascii=False, indent=2, default=CorpusManager.json_converter)
+            # Apply the json_converter to ensure 'document_date' is converted to string
+            corpus_serialized = CorpusManager.string_converter(self.corpus)
+            json.dump(corpus_serialized, f, ensure_ascii=False, indent=2)
 
     def filter_by_title(self, keyword: str or list, case_sensitive: bool = False) -> None:
         """
@@ -151,16 +158,78 @@ class CorpusManager:
 
         print(f"{i} entries in the corpus were deleted.")
 
-    @staticmethod
-    def json_converter(obj) -> str or None:
+    def filter_by_relevance(self, threshold: float, term: str) -> None:
         """
-        A helper method for serialize_corpus, which translates a datetime object to a string.
+        This method filters an object corpus by the relevance of a given term. We assume, that the relevance of the given term
+        was calculated beforehand with the method CorpusAnalyzer.calculate_term_relevance().
 
         Args:
-            obj: The object to be checked and transformed if applicable.
-        Returns:
-            The transformed datetime object as string or None.
+            threshold: The minimal relevance.
+            term: The term whose relevance is used.
         """
-        if isinstance(obj, datetime):
-            return obj.date().isoformat()
-        raise TypeError(f"Type {type(obj)} not serializable")
+        i = 0
+        keys_to_delete = []
+
+        for key in self.corpus.keys():
+            if self.corpus[key][f'relevance_{term}'] < threshold:
+                keys_to_delete.append(key)
+
+        for k in keys_to_delete:
+            del self.corpus[k]
+            i += 1
+
+    def filter_by_length(self, threshold: int):
+        """
+        This method filters an object corpus by the length. Every document which has fewer tokens than the given threshold will get filtered out.
+
+        Args:
+            threshold: The minimal document length.
+        """
+        i = 0
+        keys_to_delete = []
+
+        for key in self.corpus.keys():
+            if len(self.corpus[key]["processed_text"]) < threshold:
+                keys_to_delete.append(key)
+
+        for k in keys_to_delete:
+            del self.corpus[k]
+            i += 1
+
+    @staticmethod
+    def string_converter(corpus: dict) -> dict:
+        """
+        Static helper method to convert 'document_date' fields from datetime objects to strings.
+
+        Args:
+            corpus: The corpus dictionary.
+
+        Returns:
+            The corpus with 'document_date' fields converted to string type in iso format (YYYY-MM-DD).
+        """
+        for doc_data in corpus.values():
+            document_date = doc_data.get('document_date')
+            if isinstance(document_date, datetime):
+                doc_data['document_date'] = document_date.date().isoformat()
+        return corpus
+
+    @staticmethod
+    def datetime_converter(corpus: dict) -> dict:
+        """
+        Static helper method to parse 'document_date' fields back into datetime objects.
+
+        Args:
+            corpus: The corpus dictionary.
+
+        Returns:
+            The updated with 'document_date' fields converted to datetime objects.
+        """
+        for doc_data in corpus.values():
+            document_date = doc_data.get('document_date')
+            if isinstance(document_date, str) and document_date:
+                try:
+                    doc_data['document_date'] = datetime.strptime(document_date, '%Y-%m-%d')
+                except ValueError:
+                    # Ignore all strings who are not convertible.
+                    pass
+        return corpus
