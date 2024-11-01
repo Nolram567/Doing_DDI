@@ -1,8 +1,6 @@
 import json
 import os
 import logging
-
-import numpy as np
 from gensim.corpora import MmCorpus
 from corpus_manager import CorpusManager
 from gensim import corpora
@@ -10,14 +8,11 @@ from gensim.models import LdaModel, CoherenceModel
 import pyLDAvis.gensim_models as gensimvis
 import pyLDAvis
 import statistics
-from gensim.corpora.dictionary import Dictionary
-
 
 def visualize_model(lda_model: LdaModel, bag_of_words_model: list, dictionary: corpora.dictionary,
                     filename: str) -> None:
 
     vis_data = gensimvis.prepare(lda_model, bag_of_words_model, dictionary)
-
     pyLDAvis.save_html(vis_data, os.path.join('data_outputs/lda_visualisation', filename))
 
 
