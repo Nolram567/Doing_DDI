@@ -1,5 +1,29 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafik Skalierung Beispiel</title>
+    <style>
+        /* Skalierung der Grafik auf 80 % */
+        .scaled-graphic {
+            width: 75%;
+            height: auto; /* Behält das Seitenverhältnis bei */
+        }
 
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/bmabey/pyLDAvis@3.4.0/pyLDAvis/js/ldavis.v1.0.0.css">
+        /* Zentriert die Grafik */
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/bmabey/pyLDAvis@3.4.0/pyLDAvis/js/ldavis.v1.0.0.css">
 
 
 <div id="ldavis_el429621276448569449275663627" style="background-color:white;"></div>
@@ -39,3 +63,8 @@ if(typeof(LDAvis) !== "undefined"){
          });
 }
 </script>
+</div>
+
+</body>
+</html>
+
