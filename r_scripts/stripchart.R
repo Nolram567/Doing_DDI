@@ -30,7 +30,7 @@ speakers <- s_attributes(p, "speaker_name")
 # Ergebnisse als Liste initialisieren
 results <- list()
 
-# Iteration über alle Redner
+# Iteration über alle Redner:innen
 for (speaker in speakers) {
   
   partition_lp <- partition(gparl, protocol_lp = c("17", "18", "19", "20"))
