@@ -9,14 +9,37 @@ import pyLDAvis.gensim_models as gensimvis
 import pyLDAvis
 import statistics
 
-def visualize_model(lda_model: LdaModel, bag_of_words_model: list, dictionary: corpora.dictionary,
-                    filename: str) -> None:
+def visualize_model(lda_model: LdaModel, bag_of_words_model: list, dictionary: corpora.dictionary, filename: str) -> None:
+    """
+    Visualizes an LDA model and saves the visualization as an HTML file.
 
+    Args:
+        lda_model (LdaModel): The trained LDA model to visualize.
+        bag_of_words_model (list): The bag-of-words representation of the corpus.
+        dictionary (corpora.dictionary): The dictionary used to create the bag-of-words model.
+        filename (str): The name of the file to save the HTML visualization.
+
+    Returns:
+        None
+    """
+    
     vis_data = gensimvis.prepare(lda_model, bag_of_words_model, dictionary)
     pyLDAvis.save_html(vis_data, os.path.join('data_outputs/lda_visualisation', filename))
 
 
 def save_model(lda_model: LdaModel, bag_of_words_model: list, dictionary: corpora.dictionary, filename: str) -> None:
+    """
+    Save the LDA model, bag of words model, and dictionary to disk.
+
+    Args:
+        lda_model (LdaModel): The trained LDA model to be saved.
+        bag_of_words_model (list): The bag of words model to be serialized and saved.
+        dictionary (corpora.dictionary): The dictionary to be saved.
+        filename (str): The base filename to use for saving the models and dictionary.
+
+    Returns:
+        None
+    """
     dictionary.save(os.path.join('data_outputs/models', f'dictionary_{filename}.dict'))
     lda_model.save(os.path.join('data_outputs/models', f'topic_model_{filename}.lda'))
     MmCorpus.serialize(os.path.join(f'data_outputs/models', f'bow_corpus_{filename}.mm'), bag_of_words_model)
