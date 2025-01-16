@@ -178,7 +178,7 @@ class CorpusManager:
             del self.corpus[k]
             i += 1
 
-    def filter_by_length(self, threshold: int):
+    def filter_by_length(self, threshold: int) -> None:
         """
         This method filters an object corpus by the length. Every document which has fewer tokens than the given threshold will get filtered out.
 
